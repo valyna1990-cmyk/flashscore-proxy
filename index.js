@@ -5,47 +5,64 @@ const cors = require("cors");
 const app = express();
 app.use(cors());
 
+function generateFsid() {
+    const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
+    let out = "";
+    for (let i = 0; i < 32; i++) {
+        out += chars[Math.floor(Math.random() * chars.length)];
+    }
+    return out;
+}
+
 app.get("/proxy", async (req, res) => {
     try {
+        const fsid = generateFsid();
+
         const targetPath = req.query.url;
         if (!targetPath) return res.status(400).send("Missing url parameter");
 
-        // Строим конечный URL
         const targetUrl = "https://d.flashscore.com" + targetPath;
 
-        // Ключевые заголовки, без них FlashScore выдаёт HTML
         const headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:124.0) Gecko/20100101 Firefox/124.0",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:122.0) Gecko/20100101 Firefox/122.0",
             "Accept": "*/*",
+            "Accept-Encoding": "gzip, deflate, br",
             "Accept-Language": "en-US,en;q=0.8",
             "Referer": "https://www.flashscore.com/",
             "Origin": "https://www.flashscore.com",
-            "X-Fsign": "SW9D1eZo",             // КРИТИЧЕСКОЕ ЗНАЧЕНИЕ
-            "X-Fgp": "1",                      // FlashScore проверяет этот ключ
-            "X-GeoIP": "1",                    // Указывает FEED, что запрос из ЕС
-            "Accept-Encoding": "gzip, deflate, br"
+
+            // ключевые флаги антибота
+            "X-Fsign": "SW9D1eZo",
+            "X-Ftype": "web",
+            "X-Me": "123", 
+            "X-Fgp": "1",
+            "X-GeoIP": "1",
+
+            // обязательная куки
+            "Cookie": `fsid=${fsid};`
         };
 
         const response = await axios.get(targetUrl, {
             headers,
             responseType: "text",
             decompress: true,
+            transformResponse: r => r
         });
 
         res.set("Content-Type", "text/plain; charset=utf-8");
         res.send(response.data);
 
     } catch (err) {
-        res.status(500).send("Proxy error: " + err.message);
+        res.status(500).send("Proxy error: " + err.toString());
     }
 });
 
-// Health-check
 app.get("/", (req, res) => {
-    res.send("FlashScore Proxy OK");
+    res.send("FlashScore Proxy is working");
 });
 
 const port = process.env.PORT || 10000;
 app.listen(port, () => {
     console.log("FlashScore proxy running on port " + port);
 });
+
