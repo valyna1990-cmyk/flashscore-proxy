@@ -45,4 +45,7 @@ app.get("/", (req, res) => {
     res.send("FlashScore Proxy OK");
 });
 
-const port
+const port = process.env.PORT || 10000;
+app.listen(port, () => {
+    console.log("FlashScore proxy running on port " + port);
+});
